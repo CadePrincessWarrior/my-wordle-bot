@@ -14,15 +14,13 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC 
 
 # --- CONFIGURATION & GLOBALS ---
-# Source for a reliable list of Wordle solution words
 WORD_LIST_URL = "https://raw.githubusercontent.com/tabatkins/wordle-list/main/words"
 
-# Credentials pulled securely from GitHub Secrets (EMAIL_USER, EMAIL_PASS)
 EMAIL_SENDER = os.environ.get("EMAIL_USER")
 EMAIL_PASSWORD = os.environ.get("EMAIL_PASS")
 
 # !!! IMPORTANT: REPLACE THIS with your receiving email or phone number !!!
-# e.g., "5551234567@vtext.com" for Verizon
+# e.g., "5551234567@vtext.com" (for Verizon)
 EMAIL_RECEIVER = "YOUR_TARGET_EMAIL_OR_PHONE@CARRIER.COM" 
 
 
@@ -77,20 +75,26 @@ def get_next_guess(attempt, valid_words):
 # --- BROWSER AUTOMATION FUNCTIONS (The "Hands") ---
 
 def setup_driver():
-    """Configures and starts the Chrome web driver for cloud execution."""
+    """Configures and starts the Chrome web driver for cloud execution with maximum stability."""
     chrome_options = Options()
     
-    # Essential for cloud hosting and stability
+    # Core stability and headless mode
     chrome_options.add_argument("--headless=new") 
     chrome_options.add_argument("--no-sandbox")
     chrome_options.add_argument("--disable-dev-shm-usage")
+    
+    # Advanced Stability and Crash Avoidance Flags (Addressing the empty stacktrace crash)
+    chrome_options.add_argument("--disable-gpu")
+    chrome_options.add_argument("--disable-software-rasterizer")
+    chrome_options.add_argument("--disable-extensions")
+    chrome_options.add_argument("--disable-setuid-sandbox")
+    
     chrome_options.add_argument("--window-size=1920,1080")
     
-    # *** FINAL FIX: Ensures a clean session every run ***
+    # Ensures a clean session every run (Fixes repeated plays)
     chrome_options.add_argument("--incognito") 
-    # ***************************************************
     
-    # Use a standard user-agent string to mimic a real browser
+    # Mimics a real user browser
     chrome_options.add_argument("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.0.0 Safari/537.36")
     
     service = Service(ChromeDriverManager().install())
@@ -125,7 +129,7 @@ def play_game():
         body.send_keys(Keys.ESCAPE)
         time.sleep(1)
         
-        # 2. Wait for the main game element to be present (FIXED CRASH HERE)
+        # 2. Wait for the main game element to be present (FIXED "NO SUCH ELEMENT" CRASH)
         print("Waiting for game board...")
         wait = WebDriverWait(driver, 10)
         game_app = wait.until(EC.presence_of_element_located((By.TAG_NAME, 'game-app')))
@@ -186,6 +190,7 @@ def play_game():
         print(f"Critical error during gameplay: {e}")
         return f"Wordle Bot FAILED with critical error: {str(e)}"
     finally:
+        # Crucial step: Ensure the browser is closed to free up resources
         driver.quit()
 
 
