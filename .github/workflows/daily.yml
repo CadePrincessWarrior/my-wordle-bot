@@ -2,9 +2,8 @@ name: Run Wordle Bot
 
 on:
   schedule:
-    # Runs at 12:00 UTC every day (Adjust to your timezone)
     - cron: '0 12 * * *'
-  workflow_dispatch: # Allows manual trigger button
+  workflow_dispatch:
 
 jobs:
   play:
@@ -18,6 +17,12 @@ jobs:
         with:
           python-version: '3.9'
 
+      # --- NEW STEP: Install Chrome and Driver ---
+      - name: Install Google Chrome
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y google-chrome-stable
+          
       - name: Install Dependencies
         run: pip install -r requirements.txt
 
