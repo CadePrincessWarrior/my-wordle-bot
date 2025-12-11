@@ -21,7 +21,7 @@ EMAIL_PASSWORD = os.environ.get("EMAIL_PASS")
 
 # !!! IMPORTANT: REPLACE THIS with your receiving email or phone number !!!
 # e.g., "myphone@vtext.com" (for Verizon) or "myemail@gmail.com"
-EMAIL_RECEIVER = "YOUR_TARGET_EMAIL_OR_PHONE@CARRIER.COM" 
+EMAIL_RECEIVER = "4022507885@vtext.com" 
 
 
 # --- CORE LOGIC FUNCTIONS (The "Brain") ---
@@ -231,3 +231,4 @@ if __name__ == "__main__":
         subject = "🚨 Wordle Bot CRASHED."
         
     send_email(subject, result)
+
