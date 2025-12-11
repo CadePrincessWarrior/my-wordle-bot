@@ -4,12 +4,14 @@ import random
 import requests
 import os
 from email.mime.text import MIMEText
-import undetected_chromedriver as uc  # <-- NEW: Using undetectable driver
+from selenium import webdriver # <-- BACK TO STANDARD SELENIUM
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
+from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.support.ui import WebDriverWait 
 from selenium.webdriver.support import expected_conditions as EC 
+# Removed: import undetected_chromedriver as uc
 
 # --- CONFIGURATION & GLOBALS ---
 WORD_LIST_URL = "https://raw.githubusercontent.com/tabatkins/wordle-list/main/words"
@@ -17,28 +19,20 @@ WORD_LIST_URL = "https://raw.githubusercontent.com/tabatkins/wordle-list/main/wo
 EMAIL_SENDER = os.environ.get("EMAIL_USER")
 EMAIL_PASSWORD = os.environ.get("EMAIL_PASS")
 
-# !!! IMPORTANT: REPLACE THIS with your receiving email or phone number !!!
+# !!! IMPORTANT: VERIFIED RECEIVER (4022507885@vtext.com) !!!
 EMAIL_RECEIVER = "4022507885@vtext.com" 
 
 
-# --- CORE LOGIC FUNCTIONS (The "Brain") ---
-
+# --- CORE LOGIC FUNCTIONS (Unchanged) ---
 def filter_words(word_list, last_guess, feedback):
-    """Filters the list of potential solution words based on the feedback."""
     new_list = []
-    
     for word in word_list:
         is_valid = True
-        
         for i, (letter, result) in enumerate(zip(last_guess, feedback)):
-            
-            # 1. ABSENT (Gray)
             if result == 'absent':
                 if letter in word and word.count(letter) <= last_guess.count(letter):
                     is_valid = False
                     break
-
-            # 2. PRESENT (Yellow)
             elif result == 'present':
                 if letter not in word:
                     is_valid = False
@@ -46,16 +40,12 @@ def filter_words(word_list, last_guess, feedback):
                 if word[i] == letter:
                     is_valid = False
                     break
-
-            # 3. CORRECT (Green)
             elif result == 'correct':
                 if word[i] != letter:
                     is_valid = False
                     break
-
         if is_valid:
             new_list.append(word)
-            
     return new_list
 
 def get_next_guess(attempt, valid_words):
@@ -69,27 +59,31 @@ def get_next_guess(attempt, valid_words):
 # --- BROWSER AUTOMATION FUNCTIONS (The "Hands") ---
 
 def setup_driver():
-    """Configures and starts the undetectable Chrome driver."""
+    """Configures and starts the Chrome web driver using the manual installation path."""
+    chrome_options = Options()
     
-    # We use a standard Options object to apply common settings
-    options = Options()
+    # Core stability and headless mode
+    chrome_options.add_argument("--headless=new") 
+    chrome_options.add_argument("--no-sandbox")
+    chrome_options.add_argument("--disable-dev-shm-usage")
     
-    # Essential stability and headless mode arguments
-    options.add_argument("--headless=new") 
-    options.add_argument("--no-sandbox")
-    options.add_argument("--disable-dev-shm-usage")
-    options.add_argument("--disable-gpu")
-    options.add_argument("--window-size=1920,1080")
-    options.add_argument("--incognito") 
+    # Advanced Stability and Crash Avoidance Flags
+    chrome_options.add_argument("--disable-gpu")
+    chrome_options.add_argument("--disable-software-rasterizer")
+    chrome_options.add_argument("--disable-extensions")
+    chrome_options.add_argument("--disable-setuid-sandbox")
     
-    # undetected-chromedriver handles driver path/install automatically
-    # and patches the driver to bypass anti-bot detection measures.
-    driver = uc.Chrome(options=options)
+    chrome_options.add_argument("--window-size=1920,1080")
+    chrome_options.add_argument("--incognito") 
+    chrome_options.add_argument("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.0.0 Safari/537.36")
     
-    return driver
+    # --- MANUAL DRIVER PATH (We are now relying solely on the YML step) ---
+    service = Service("/usr/bin/chromedriver")
+    # ---------------------------------------------------------------------
+    
+    return webdriver.Chrome(service=service, options=chrome_options)
 
 def get_word_list():
-    """Downloads the list of valid words from GitHub."""
     try:
         response = requests.get(WORD_LIST_URL)
         response.raise_for_status() 
@@ -100,7 +94,6 @@ def get_word_list():
 
 
 def play_game():
-    """Main function to run the Wordle game loop."""
     driver = setup_driver()
     valid_words = get_word_list()
     feedback_history = []
@@ -117,7 +110,7 @@ def play_game():
         body.send_keys(Keys.ESCAPE)
         time.sleep(1)
         
-        # 2. Wait for the main game element to be present (FIXED CRASH HERE)
+        # 2. Wait for the main game element to be present
         print("Waiting for game board...")
         wait = WebDriverWait(driver, 10)
         game_app = wait.until(EC.presence_of_element_located((By.TAG_NAME, 'game-app')))
@@ -136,6 +129,7 @@ def play_game():
             print(f"Attempt {attempt + 1}: Guessing {current_guess}")
             
             body.send_keys(current_guess)
+            time.sleep(1) # Shortened sleep before Enter
             body.send_keys(Keys.ENTER)
             time.sleep(3) 
 
@@ -184,7 +178,7 @@ def play_game():
 # --- NOTIFICATION FUNCTIONS (The "Messenger") ---
 
 def send_email(subject, body):
-    """Sends the result via email using SMTP."""
+    # (Email logic remains the same)
     if not EMAIL_SENDER or not EMAIL_PASSWORD:
         print("ERROR: Email credentials not found in environment. Skipping email.")
         print("Final Result:\n", body)
@@ -196,7 +190,6 @@ def send_email(subject, body):
     msg['To'] = EMAIL_RECEIVER
 
     try:
-        # Connect to Gmail SMTP
         with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server:
             server.login(EMAIL_SENDER, EMAIL_PASSWORD)
             server.sendmail(EMAIL_SENDER, EMAIL_RECEIVER, msg.as_string())
@@ -211,7 +204,6 @@ if __name__ == "__main__":
     subject = "Daily Wordle Bot Run"
     result = play_game()
     
-    # Extract win/loss status for subject line
     if "WON" in result:
         subject = "✅ Wordle Bot SUCCESS!"
     elif "LOST" in result:
@@ -220,4 +212,3 @@ if __name__ == "__main__":
         subject = "🚨 Wordle Bot CRASHED."
         
     send_email(subject, result)
-
