@@ -1,5 +1,3 @@
 selenium
-# Removed: webdriver-manager
 requests
-undetected-chromedriver  
-
+# Remove undetected-chromedriver
