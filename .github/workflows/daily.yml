@@ -1,1 +1,28 @@
+name: Run Wordle Bot
 
+on:
+  schedule:
+    # Runs at 12:00 UTC every day (Adjust to your timezone)
+    - cron: '0 12 * * *'
+  workflow_dispatch: # Allows manual trigger button
+
+jobs:
+  play:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+
+      - name: Install Dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run Bot
+        env:
+          EMAIL_USER: ${{ secrets.EMAIL_USER }}
+          EMAIL_PASS: ${{ secrets.EMAIL_PASS }}
+        run: python main.py
