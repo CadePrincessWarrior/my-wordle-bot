@@ -17,11 +17,18 @@ jobs:
         with:
           python-version: '3.9'
 
-      # --- NEW STEP: Install Chrome and Driver ---
-      - name: Install Google Chrome
+      # --- CRITICAL STEP: Install Chrome and Driver ---
+      - name: Install Google Chrome and Driver Dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y google-chrome-stable
+          sudo apt-get install -y google-chrome-stable unzip
+          # Download and install the compatible chromedriver manually
+          CHROME_VERSION=$(google-chrome --version | grep -oP '\d+\.\d+\.\d+\.\d+')
+          DRIVER_URL="https://storage.googleapis.com/chrome-for-testing-public/$(echo $CHROME_VERSION | cut -d'.' -f1)/linux64/chromedriver-linux64.zip"
+          wget $DRIVER_URL -O chromedriver.zip
+          unzip chromedriver.zip
+          sudo mv chromedriver /usr/bin/chromedriver
+          sudo chmod +x /usr/bin/chromedriver
           
       - name: Install Dependencies
         run: pip install -r requirements.txt
