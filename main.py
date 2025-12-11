@@ -10,6 +10,8 @@ from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.chrome.service import Service
 from webdriver_manager.chrome import ChromeDriverManager
 from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.support.ui import WebDriverWait 
+from selenium.webdriver.support import expected_conditions as EC 
 
 # --- CONFIGURATION & GLOBALS ---
 # Source for a reliable list of Wordle solution words
@@ -20,8 +22,8 @@ EMAIL_SENDER = os.environ.get("EMAIL_USER")
 EMAIL_PASSWORD = os.environ.get("EMAIL_PASS")
 
 # !!! IMPORTANT: REPLACE THIS with your receiving email or phone number !!!
-# e.g., "myphone@vtext.com" (for Verizon) or "myemail@gmail.com"
-EMAIL_RECEIVER = "4022507885@vtext.com" 
+# e.g., "5551234567@vtext.com" for Verizon
+EMAIL_RECEIVER = "YOUR_TARGET_EMAIL_OR_PHONE@CARRIER.COM" 
 
 
 # --- CORE LOGIC FUNCTIONS (The "Brain") ---
@@ -37,28 +39,21 @@ def filter_words(word_list, last_guess, feedback):
             
             # 1. ABSENT (Gray): Letter is not in the solution.
             if result == 'absent':
-                # Skip if the letter is in the potential word, UNLESS 
-                # that letter was also marked 'present' or 'correct' elsewhere 
-                # (meaning there's a duplicate, which is complex and often skipped 
-                # by simple solvers. We use a simple check here.)
                 if letter in word and word.count(letter) <= last_guess.count(letter):
                     is_valid = False
                     break
 
             # 2. PRESENT (Yellow): Letter is in the word, but not at this position.
             elif result == 'present':
-                # Word MUST contain the letter
                 if letter not in word:
                     is_valid = False
                     break
-                # Word MUST NOT have the letter at this specific position
                 if word[i] == letter:
                     is_valid = False
                     break
 
             # 3. CORRECT (Green): Letter is in the word and in the right position.
             elif result == 'correct':
-                # Word MUST have this letter at this specific position
                 if word[i] != letter:
                     is_valid = False
                     break
@@ -73,11 +68,9 @@ def get_next_guess(attempt, valid_words):
     if attempt == 0:
         return "CRANE" # Statistically strong starter
     
-    # After the first guess, pick a random word from the remaining possibilities
     if valid_words:
         return random.choice(valid_words)
     
-    # Fallback if no valid words remain
     return "LUCKY" 
 
 
@@ -87,11 +80,15 @@ def setup_driver():
     """Configures and starts the Chrome web driver for cloud execution."""
     chrome_options = Options()
     
-    # Essential for cloud hosting and bypassing simple bot detection
+    # Essential for cloud hosting and stability
     chrome_options.add_argument("--headless=new") 
     chrome_options.add_argument("--no-sandbox")
     chrome_options.add_argument("--disable-dev-shm-usage")
     chrome_options.add_argument("--window-size=1920,1080")
+    
+    # *** FINAL FIX: Ensures a clean session every run ***
+    chrome_options.add_argument("--incognito") 
+    # ***************************************************
     
     # Use a standard user-agent string to mimic a real browser
     chrome_options.add_argument("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.0.0 Safari/537.36")
@@ -103,11 +100,10 @@ def get_word_list():
     """Downloads the list of valid words from GitHub."""
     try:
         response = requests.get(WORD_LIST_URL)
-        response.raise_for_status() # Raise an exception for bad status codes
+        response.raise_for_status() 
         return [word.upper() for word in response.text.splitlines() if len(word) == 5]
     except Exception as e:
         print(f"Error downloading word list: {e}")
-        # Fallback to a hardcoded minimal list if download fails
         return ["CRANE", "ADEPT", "ROAST", "SLICE", "FLOCK", "GRIME"]
 
 
@@ -129,11 +125,13 @@ def play_game():
         body.send_keys(Keys.ESCAPE)
         time.sleep(1)
         
-        # Access the Shadow DOM root for the game
-        game_app = driver.find_element(By.TAG_NAME, 'game-app')
-        shadow_root_1 = driver.execute_script("return arguments[0].shadowRoot", game_app)
+        # 2. Wait for the main game element to be present (FIXED CRASH HERE)
+        print("Waiting for game board...")
+        wait = WebDriverWait(driver, 10)
+        game_app = wait.until(EC.presence_of_element_located((By.TAG_NAME, 'game-app')))
         
-        # Access the game board root
+        # 3. Access the Shadow DOM roots and game board
+        shadow_root_1 = driver.execute_script("return arguments[0].shadowRoot", game_app)
         game_board = shadow_root_1.find_element(By.TAG_NAME, 'game-board')
         shadow_root_2 = driver.execute_script("return arguments[0].shadowRoot", game_board)
         
@@ -149,14 +147,13 @@ def play_game():
             body.send_keys(Keys.ENTER)
             time.sleep(3) 
 
-            # 2. Read the Board State for the current row
+            # 4. Read the Board State for the current row
             try:
                 row = shadow_root_2.find_elements(By.TAG_NAME, 'game-row')[attempt]
                 row_shadow = driver.execute_script("return arguments[0].shadowRoot", row)
                 tiles = row_shadow.find_elements(By.TAG_NAME, 'game-tile')
             except Exception as e:
-                # This often happens if the game is already over (win/loss modal)
-                print(f"Could not read row {attempt}: {e}")
+                print(f"Could not read row {attempt}, game may be over: {e}")
                 break
 
             current_feedback = []
@@ -179,7 +176,7 @@ def play_game():
                 print("WIN!")
                 return f"Wordle Bot WON in {attempt + 1}/6 attempts!\n\n{emoji_feedback}\n\nGuesses:\n" + "\n".join(feedback_history)
             
-            # Filter the word list for the next loop
+            # 5. Filter the word list for the next loop
             valid_words = filter_words(valid_words, current_guess, current_feedback)
 
         # If the loop finishes without a win:
@@ -207,7 +204,7 @@ def send_email(subject, body):
     msg['To'] = EMAIL_RECEIVER
 
     try:
-        # Connect to Gmail SMTP (Change to your provider's SMTP server if needed)
+        # Connect to Gmail SMTP
         with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server:
             server.login(EMAIL_SENDER, EMAIL_PASSWORD)
             server.sendmail(EMAIL_SENDER, EMAIL_RECEIVER, msg.as_string())
@@ -231,4 +228,3 @@ if __name__ == "__main__":
         subject = "🚨 Wordle Bot CRASHED."
         
     send_email(subject, result)
-
