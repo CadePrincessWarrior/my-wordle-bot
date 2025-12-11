@@ -59,7 +59,7 @@ def get_next_guess(attempt, valid_words):
 # --- BROWSER AUTOMATION FUNCTIONS (The "Hands") ---
 
 def setup_driver():
-    """Configures and starts the Chrome web driver using the manual installation path."""
+      """Configures and starts the Chrome web driver using the PATH."""
     chrome_options = Options()
     
     # Core stability and headless mode
@@ -212,3 +212,4 @@ if __name__ == "__main__":
         subject = "🚨 Wordle Bot CRASHED."
         
     send_email(subject, result)
+
