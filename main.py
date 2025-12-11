@@ -8,7 +8,7 @@ from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.chrome.service import Service
-from webdriver_manager.chrome import ChromeDriverManager
+# Removed: from webdriver_manager.chrome import ChromeDriverManager 
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.support.ui import WebDriverWait 
 from selenium.webdriver.support import expected_conditions as EC 
@@ -20,7 +20,6 @@ EMAIL_SENDER = os.environ.get("EMAIL_USER")
 EMAIL_PASSWORD = os.environ.get("EMAIL_PASS")
 
 # !!! IMPORTANT: REPLACE THIS with your receiving email or phone number !!!
-# e.g., "5551234567@vtext.com" (for Verizon)
 EMAIL_RECEIVER = "YOUR_TARGET_EMAIL_OR_PHONE@CARRIER.COM" 
 
 
@@ -35,13 +34,13 @@ def filter_words(word_list, last_guess, feedback):
         
         for i, (letter, result) in enumerate(zip(last_guess, feedback)):
             
-            # 1. ABSENT (Gray): Letter is not in the solution.
+            # 1. ABSENT (Gray)
             if result == 'absent':
                 if letter in word and word.count(letter) <= last_guess.count(letter):
                     is_valid = False
                     break
 
-            # 2. PRESENT (Yellow): Letter is in the word, but not at this position.
+            # 2. PRESENT (Yellow)
             elif result == 'present':
                 if letter not in word:
                     is_valid = False
@@ -50,7 +49,7 @@ def filter_words(word_list, last_guess, feedback):
                     is_valid = False
                     break
 
-            # 3. CORRECT (Green): Letter is in the word and in the right position.
+            # 3. CORRECT (Green)
             elif result == 'correct':
                 if word[i] != letter:
                     is_valid = False
@@ -62,20 +61,17 @@ def filter_words(word_list, last_guess, feedback):
     return new_list
 
 def get_next_guess(attempt, valid_words):
-    """Picks the next word to guess based on the current state."""
     if attempt == 0:
-        return "CRANE" # Statistically strong starter
-    
+        return "CRANE" 
     if valid_words:
         return random.choice(valid_words)
-    
     return "LUCKY" 
 
 
 # --- BROWSER AUTOMATION FUNCTIONS (The "Hands") ---
 
 def setup_driver():
-    """Configures and starts the Chrome web driver for cloud execution with maximum stability."""
+    """Configures and starts the Chrome web driver using the manual installation path."""
     chrome_options = Options()
     
     # Core stability and headless mode
@@ -83,22 +79,27 @@ def setup_driver():
     chrome_options.add_argument("--no-sandbox")
     chrome_options.add_argument("--disable-dev-shm-usage")
     
-    # Advanced Stability and Crash Avoidance Flags (Addressing the empty stacktrace crash)
+    # Advanced Stability and Crash Avoidance Flags
     chrome_options.add_argument("--disable-gpu")
     chrome_options.add_argument("--disable-software-rasterizer")
     chrome_options.add_argument("--disable-extensions")
     chrome_options.add_argument("--disable-setuid-sandbox")
     
     chrome_options.add_argument("--window-size=1920,1080")
-    
-    # Ensures a clean session every run (Fixes repeated plays)
     chrome_options.add_argument("--incognito") 
-    
-    # Mimics a real user browser
     chrome_options.add_argument("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.0.0 Safari/537.36")
     
-    service = Service(ChromeDriverManager().install())
+    # --- MANUAL DRIVER PATH (FIX for webdriver-manager crash) ---
+    # On Ubuntu, the default path for the driver installed with Chrome is /usr/bin/chromedriver
+    service = Service("/usr/bin/chromedriver")
+    # -----------------------------------------------------------
+    
     return webdriver.Chrome(service=service, options=chrome_options)
+
+# ... (get_word_list, play_game, send_email, and __main__ functions remain the same) ...
+# NOTE: The rest of the file below is exactly the same as the previous version
+# to maintain all other logic, but has been truncated here for brevity. 
+
 
 def get_word_list():
     """Downloads the list of valid words from GitHub."""
