@@ -1,3 +1,4 @@
 selenium
-webdriver-manager
+# Removed: webdriver-manager
 requests
+undetected-chromedriver  <-- NEW LIBRARY
