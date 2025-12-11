@@ -4,11 +4,9 @@ import random
 import requests
 import os
 from email.mime.text import MIMEText
-from selenium import webdriver
+import undetected_chromedriver as uc  # <-- NEW: Using undetectable driver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
-from selenium.webdriver.chrome.service import Service
-# Removed: from webdriver_manager.chrome import ChromeDriverManager 
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.support.ui import WebDriverWait 
 from selenium.webdriver.support import expected_conditions as EC 
@@ -71,35 +69,24 @@ def get_next_guess(attempt, valid_words):
 # --- BROWSER AUTOMATION FUNCTIONS (The "Hands") ---
 
 def setup_driver():
-    """Configures and starts the Chrome web driver using the manual installation path."""
-    chrome_options = Options()
+    """Configures and starts the undetectable Chrome driver."""
     
-    # Core stability and headless mode
-    chrome_options.add_argument("--headless=new") 
-    chrome_options.add_argument("--no-sandbox")
-    chrome_options.add_argument("--disable-dev-shm-usage")
+    # We use a standard Options object to apply common settings
+    options = Options()
     
-    # Advanced Stability and Crash Avoidance Flags
-    chrome_options.add_argument("--disable-gpu")
-    chrome_options.add_argument("--disable-software-rasterizer")
-    chrome_options.add_argument("--disable-extensions")
-    chrome_options.add_argument("--disable-setuid-sandbox")
+    # Essential stability and headless mode arguments
+    options.add_argument("--headless=new") 
+    options.add_argument("--no-sandbox")
+    options.add_argument("--disable-dev-shm-usage")
+    options.add_argument("--disable-gpu")
+    options.add_argument("--window-size=1920,1080")
+    options.add_argument("--incognito") 
     
-    chrome_options.add_argument("--window-size=1920,1080")
-    chrome_options.add_argument("--incognito") 
-    chrome_options.add_argument("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.0.0 Safari/537.36")
+    # undetected-chromedriver handles driver path/install automatically
+    # and patches the driver to bypass anti-bot detection measures.
+    driver = uc.Chrome(options=options)
     
-    # --- MANUAL DRIVER PATH (FIX for webdriver-manager crash) ---
-    # On Ubuntu, the default path for the driver installed with Chrome is /usr/bin/chromedriver
-    service = Service("/usr/bin/chromedriver")
-    # -----------------------------------------------------------
-    
-    return webdriver.Chrome(service=service, options=chrome_options)
-
-# ... (get_word_list, play_game, send_email, and __main__ functions remain the same) ...
-# NOTE: The rest of the file below is exactly the same as the previous version
-# to maintain all other logic, but has been truncated here for brevity. 
-
+    return driver
 
 def get_word_list():
     """Downloads the list of valid words from GitHub."""
@@ -130,7 +117,7 @@ def play_game():
         body.send_keys(Keys.ESCAPE)
         time.sleep(1)
         
-        # 2. Wait for the main game element to be present (FIXED "NO SUCH ELEMENT" CRASH)
+        # 2. Wait for the main game element to be present (FIXED CRASH HERE)
         print("Waiting for game board...")
         wait = WebDriverWait(driver, 10)
         game_app = wait.until(EC.presence_of_element_located((By.TAG_NAME, 'game-app')))
@@ -191,7 +178,6 @@ def play_game():
         print(f"Critical error during gameplay: {e}")
         return f"Wordle Bot FAILED with critical error: {str(e)}"
     finally:
-        # Crucial step: Ensure the browser is closed to free up resources
         driver.quit()
 
 
